@@ -252,7 +252,26 @@ public class PlayerAttack : PlayerState
     {
         base.Update();
 
-        // 有動畫後改為：timer >= player.ani.GetCurrentAnimatorStateInfo(0).length
+        // 攻擊中允許小幅移動（速度為走路的 40%）
+        float inputH = Input.GetAxis("Horizontal");
+        float inputV = Input.GetAxis("Vertical");
+
+        Vector3 camForward = Camera.main.transform.forward;
+        Vector3 camRight = Camera.main.transform.right;
+        camForward.y = 0f;
+        camRight.y = 0f;
+        camForward.Normalize();
+        camRight.Normalize();
+
+        Vector3 moveDir = camForward * inputV + camRight * inputH;
+        if (moveDir.magnitude > 1f) moveDir.Normalize();
+
+        float attackMoveSpeed = player.walkSpeed * 0.4f;
+        player.SetVelocity(
+            moveDir * attackMoveSpeed +
+            Vector3.up * player.rig.linearVelocity.y);
+
+        // 有動畫後改為讀取動畫長度
         if (timer >= player.breakComboTime)
         {
             isAttacking = false;

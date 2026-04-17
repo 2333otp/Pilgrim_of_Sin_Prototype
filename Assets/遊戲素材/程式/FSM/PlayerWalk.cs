@@ -2,16 +2,26 @@
 
 /// <summary>
 /// 玩家走路
+/// 八方向移動（相對攝影機）
+/// 長按 1.2 秒自動切換為跑步
 /// </summary>
 public class PlayerWalk : PlayerGround
 {
-    public PlayerWalk(StateMachine stateMachine, Player player, string name) : base(stateMachine, player, name)
+    // 長按切跑的時間門檻（文件：1.2 秒）
+    private float runThreshold = 1.2f;
+    // 累積按住移動鍵的時間
+    private float holdTimer = 0f;
+
+    public PlayerWalk(StateMachine stateMachine, Player player, string name)
+        : base(stateMachine, player, name)
     {
     }
 
     public override void Enter()
     {
         base.Enter();
+        // 進入走路狀態時重置長按計時器
+        holdTimer = 0f;
     }
 
     public override void Exit()
@@ -23,25 +33,64 @@ public class PlayerWalk : PlayerGround
     {
         base.Update();
 
-        player.ani.SetFloat(player.parHorizontal, inputH);   //設定動畫參數 水平 為 水平輸入
-        player.ani.SetFloat(player.parVertical, inputV);     //設定動畫參數 垂直 為 垂直輸入
+        // 計算八方向移動向量（相對攝影機）
+        Vector3 moveDir = GetCameraMoveDirection();
 
-        //根據角色的方向設定加速度
+        // 套用走路速度
         player.SetVelocity(
-            player.transform.right * inputH * player.walkSpeed +
-            player.transform.forward * inputV * player.walkSpeed +
-            player.transform.up * player.rig.linearVelocity.y);
+            moveDir * player.walkSpeed +
+            Vector3.up * player.rig.linearVelocity.y);
 
-        //面向攝影機
-        player.LookAtCamera();
+        // 有輸入才累加長按計時器
+        if (moveDir.magnitude > 0f)
+        {
+            holdTimer += Time.deltaTime;
+            // 面向移動方向
+            player.LookAtMoveDirection(moveDir);
+        }
+        else
+        {
+            // 沒有輸入就重置長按計時器
+            holdTimer = 0f;
+        }
+
+        // 動畫參數（有動畫後取消註解）
+        // player.ani.SetFloat(player.parHorizontal, inputH);
+        // player.ani.SetFloat(player.parVertical, inputV);
 
         #region 條件區域
-        //如果玩家的水平輸入 等於 零 並且 垂直輸入 等於 零 就切換到 待機狀態
-        if (inputH == 0 && inputV == 0) stateMachine.SwitchState(player.idle);
+        // 沒有輸入 → 待機
+        if (inputH == 0 && inputV == 0)
+            stateMachine.SwitchState(player.idle);
 
-        //如果玩家按 左邊 Shift 鍵 就切換到 跑步狀態
-        if (Input.GetKey(KeyCode.LeftShift)) stateMachine.SwitchState(player.run);
+        // 長按超過門檻 → 跑步
+        if (holdTimer >= runThreshold)
+            stateMachine.SwitchState(player.run);
         #endregion
+    }
 
+    /// <summary>
+    /// 根據攝影機方向計算八方向移動向量
+    /// 斜角已正規化，確保斜角速度與直角相同
+    /// </summary>
+    private Vector3 GetCameraMoveDirection()
+    {
+        // 取得攝影機的前方與右方（忽略 Y 軸，只取水平分量）
+        Vector3 camForward = Camera.main.transform.forward;
+        Vector3 camRight = Camera.main.transform.right;
+        camForward.y = 0f;
+        camRight.y = 0f;
+        camForward.Normalize();
+        camRight.Normalize();
+
+        // 組合輸入方向
+        Vector3 moveDir = camForward * inputV + camRight * inputH;
+
+        // 正規化：確保斜角（例如 W+D）速度與直角（只按 W）相同
+        // 不超過長度 1
+        if (moveDir.magnitude > 1f)
+            moveDir.Normalize();
+
+        return moveDir;
     }
 }

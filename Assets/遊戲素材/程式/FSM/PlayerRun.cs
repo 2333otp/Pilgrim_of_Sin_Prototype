@@ -2,10 +2,13 @@
 
 /// <summary>
 /// 玩家跑步
+/// 八方向移動（相對攝影機）
+/// 放開移動鍵 → 切回走路
 /// </summary>
 public class PlayerRun : PlayerGround
 {
-    public PlayerRun(StateMachine stateMachine, Player player, string name) : base(stateMachine, player, name)
+    public PlayerRun(StateMachine stateMachine, Player player, string name)
+        : base(stateMachine, player, name)
     {
     }
 
@@ -23,25 +26,48 @@ public class PlayerRun : PlayerGround
     {
         base.Update();
 
-        player.ani.SetFloat(player.parHorizontal, inputH * 2);   //設定動畫參數 水平 為 水平輸入
-        player.ani.SetFloat(player.parVertical, inputV * 2);     //設定動畫參數 垂直 為 垂直輸入
+        // 計算八方向移動向量（相對攝影機）
+        Vector3 moveDir = GetCameraMoveDirection();
 
-        //根據角色的方向設定加速度
+        // 套用跑步速度
         player.SetVelocity(
-            player.transform.right * inputH * player.runSpeed +
-            player.transform.forward * inputV * player.runSpeed +
-            player.transform.up * player.rig.linearVelocity.y);
+            moveDir * player.runSpeed +
+            Vector3.up * player.rig.linearVelocity.y);
 
-        //面向攝影機
-        player.LookAtCamera();
+        // 有輸入才面向移動方向
+        if (moveDir.magnitude > 0f)
+            player.LookAtMoveDirection(moveDir);
+
+        // 動畫參數（有動畫後取消註解）
+        // player.ani.SetFloat(player.parHorizontal, inputH * 2);
+        // player.ani.SetFloat(player.parVertical, inputV * 2);
 
         #region 條件區域
-        //如果玩家的水平輸入 等於 零 並且 垂直輸入 等於 零 就切換到 待機狀態
-        if (inputH == 0 && inputV == 0) stateMachine.SwitchState(player.idle);
-
-        //如果玩家按 左邊 Shift 鍵 就切換到 跑步狀態
-        if (Input.GetKeyUp(KeyCode.LeftShift)) stateMachine.SwitchState(player.walk);
+        // 沒有輸入 → 待機
+        if (inputH == 0 && inputV == 0)
+            stateMachine.SwitchState(player.idle);
         #endregion
+    }
+
+    /// <summary>
+    /// 根據攝影機方向計算八方向移動向量
+    /// 與 PlayerWalk 相同邏輯，斜角已正規化
+    /// </summary>
+    private Vector3 GetCameraMoveDirection()
+    {
+        Vector3 camForward = Camera.main.transform.forward;
+        Vector3 camRight = Camera.main.transform.right;
+        camForward.y = 0f;
+        camRight.y = 0f;
+        camForward.Normalize();
+        camRight.Normalize();
+
+        Vector3 moveDir = camForward * inputV + camRight * inputH;
+
+        if (moveDir.magnitude > 1f)
+            moveDir.Normalize();
+
+        return moveDir;
     }
 }
 

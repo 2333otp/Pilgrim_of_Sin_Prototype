@@ -146,17 +146,6 @@ public class Player : Character
     }
 
     /// <summary>
-    /// 面向攝影機
-    /// </summary>
-    public void LookAtCamera()
-    {
-        //建立一個新的四元數 只使用攝影機的 Y 軸角度
-        Quaternion camAngle = Quaternion.Euler(0, mainCam.eulerAngles.y, 0);
-        //使用插值的方式 讓玩家角度慢慢轉向攝影機角度
-        transform.rotation = Quaternion.Lerp(transform.rotation, camAngle, turnSpeed * Time.deltaTime);
-    }
-
-    /// <summary>
     /// 隱藏滑鼠
     /// </summary>
     public void HideMouse()
@@ -311,5 +300,22 @@ public class Player : Character
         // 因為特殊招式優先度最高，可以直接打斷普通攻擊與連段
         Debug.Log("<color=#f0f>特殊招式輸入通過，切換狀態</color>");
         stateMachine.SwitchState(specialAttack);
+    }
+
+    /// <summary>
+    /// 面向移動方向（取代 LookAtCamera，移動時使用）
+    /// </summary>
+    /// <param name="moveDir">移動方向向量</param>
+    public void LookAtMoveDirection(Vector3 moveDir)
+    {
+        if (moveDir.sqrMagnitude < 0.001f) return;  // 向量太小就不旋轉
+
+        // 目標角度：面向移動方向
+        Quaternion targetRotation = Quaternion.LookRotation(moveDir);
+        // 插值平滑旋轉
+        transform.rotation = Quaternion.Lerp(
+            transform.rotation,
+            targetRotation,
+            turnSpeed * Time.deltaTime);
     }
 }

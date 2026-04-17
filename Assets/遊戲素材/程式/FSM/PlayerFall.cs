@@ -1,46 +1,56 @@
 ﻿using UnityEngine;
-using UnityEngine.Windows;
 
 /// <summary>
 /// 玩家落下
+/// 規則：
+///   - 繼承跳躍的鎖定方向，滯空期間不可飄移不可旋轉
+///   - 落地後切回待機
+///   - 滯空中可再次按空白鍵連跳
 /// </summary>
 public class PlayerFall : PlayerState
 {
-    public PlayerFall(StateMachine stateMachine, Player player, string name) : base(stateMachine, player, name)
+    public PlayerFall(StateMachine stateMachine, Player player, string name)
+        : base(stateMachine, player, name)
     {
     }
 
     public override void Enter()
     {
         base.Enter();
-        //動畫參數 重力 浮點數 -1
-        player.ani.SetFloat(player.parGravity, -1);
+        // player.ani.SetFloat(player.parGravity, -1);  // 有動畫後取消註解
     }
 
     public override void Exit()
     {
         base.Exit();
-        //離開跳躍狀態時將跳躍開關 關閉
-        player.ani.SetBool(player.parJump, false);
+        // player.ani.SetBool(player.parJump, false);   // 有動畫後取消註解
     }
 
     public override void Update()
     {
         base.Update();
 
-        //根據角色的方向設定加速度
+        // Fall 狀態不修改水平速度
+        // 保留 Jump 離開時的水平慣性，只讓重力作用在 Y 軸
+        // 不呼叫 SetVelocity 修改水平，避免飄移
         player.SetVelocity(
-            player.transform.right * inputH * player.walkSpeed +
-            player.transform.forward * inputV * player.walkSpeed +
-            player.transform.up * player.rig.linearVelocity.y);
+            new Vector3(
+                player.rig.linearVelocity.x,    // 保持原本水平速度不變
+                player.rig.linearVelocity.y,    // Y 軸繼續受重力
+                player.rig.linearVelocity.z));
 
-        //面向攝影機
-        player.LookAtCamera();
+        // 禁止旋轉：不呼叫 LookAtMoveDirection
 
         #region 條件區域
-        //如果 玩家可以跳躍 (回到地板上) 就切換到 待機狀態
         if (player.CanJump())
+        {
+            // 落地時清除水平速度，避免殘留速度造成旋轉
+            player.SetVelocity(new Vector3(0, player.rig.linearVelocity.y, 0));
             stateMachine.SwitchState(player.idle);
+        }
+
+        if (Input.GetKeyDown(KeyCode.Space))
+            stateMachine.SwitchState(player.jump);
         #endregion
     }
 }

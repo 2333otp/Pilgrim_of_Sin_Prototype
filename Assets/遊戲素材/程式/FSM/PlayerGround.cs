@@ -25,5 +25,8 @@ public class PlayerGround : PlayerState
         if (player.CanJump() && Input.GetKeyDown(KeyCode.Space))
             stateMachine.SwitchState(player.jump);
         #endregion
+
+        Debug.Log($"CanJump: {player.CanJump()} | Space: {Input.GetKeyDown(KeyCode.Space)}");
+
     }
 }

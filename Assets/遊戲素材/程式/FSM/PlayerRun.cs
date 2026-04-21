@@ -36,7 +36,13 @@ public class PlayerRun : PlayerGround
 
         // 有輸入才面向移動方向
         if (moveDir.magnitude > 0f)
-            player.LookAtMoveDirection(moveDir);
+        {
+            // 鎖定中面向目標，否則面向移動方向
+            if (player.lockOn != null && player.lockOn.isLockedOn)
+                player.LookAtTarget();
+            else
+                player.LookAtMoveDirection(moveDir);
+        }
 
         // 動畫參數（有動畫後取消註解）
         // player.ani.SetFloat(player.parHorizontal, inputH * 2);

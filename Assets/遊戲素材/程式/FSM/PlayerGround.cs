@@ -21,8 +21,8 @@ public class PlayerGround : PlayerState
         base.Update();
 
         #region 條件區域
-        //如果 可以跳躍 並且 按下空白鍵 就產生向上的加速度
-        if (player.CanJump() && Input.GetKeyDown(KeyCode.Space))
+        // 翻滾中不可跳躍
+        if (player.CanJump() && Input.GetKeyDown(KeyCode.Space) && !player.roll.isRolling)
             stateMachine.SwitchState(player.jump);
         #endregion
 

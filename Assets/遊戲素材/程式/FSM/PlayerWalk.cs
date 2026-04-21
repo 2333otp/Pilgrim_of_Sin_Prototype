@@ -45,13 +45,12 @@ public class PlayerWalk : PlayerGround
         if (moveDir.magnitude > 0f)
         {
             holdTimer += Time.deltaTime;
-            // 面向移動方向
-            player.LookAtMoveDirection(moveDir);
-        }
-        else
-        {
-            // 沒有輸入就重置長按計時器
-            holdTimer = 0f;
+
+            // 鎖定中面向目標，否則面向移動方向
+            if (player.lockOn != null && player.lockOn.isLockedOn)
+                player.LookAtTarget();
+            else
+                player.LookAtMoveDirection(moveDir);
         }
 
         // 動畫參數（有動畫後取消註解）

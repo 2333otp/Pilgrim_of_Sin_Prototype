@@ -62,6 +62,8 @@ public class Player : Character
     public PlayerDead dead { get; private set; }
     public PlayerWeaponSwitch weaponSwitch { get; private set; }
     public PlayerSpecialAttack specialAttack { get; private set; }
+    public PlayerRoll roll { get; private set; }
+    public LockOnSystem lockOn { get; private set; }
 
     #endregion
 
@@ -104,6 +106,7 @@ public class Player : Character
         //rig = GetComponent<Rigidbody>();    //取得剛體元件
         mainCam = Camera.main.transform;    //取得主攝影機的變形元件 (貼 MainCamera 標籤)
 
+
         #region 狀態實例化
         //實例化 new 該類別 : 讓此類別不用掛在物件上也可以在場景內執行
         stateMachine = new StateMachine();
@@ -116,7 +119,8 @@ public class Player : Character
         dead = new PlayerDead(stateMachine, this, $"{name} 死亡");
         weaponSwitch = new PlayerWeaponSwitch(stateMachine, this, $"{name} 武器切換");
         specialAttack = new PlayerSpecialAttack(stateMachine, this, $"{name} 特殊招式");
-
+        roll = new PlayerRoll(stateMachine, this, $"{name} 翻滾");
+        lockOn = GetComponent<LockOnSystem>();
 
         #endregion
 
@@ -129,8 +133,10 @@ public class Player : Character
         //狀態機更新
         stateMachine.Update();
         InputSpecialAttack();
+        InputRoll();            // ← 新增，放在攻擊之前
         InputAttack();                     //呼叫輸入攻擊方法
         InputWeaponSwitch();
+        InputLockOn();
 
         //Debug.Log(CanJump());
     }
@@ -189,6 +195,12 @@ public class Player : Character
             Debug.Log("<color=#f66>切換武器中，無法攻擊</color>");
             return;
         }
+        // 翻滾中不可攻擊
+        if (roll.isRolling)
+        {
+            Debug.Log("<color=#f66>翻滾中，無法攻擊</color>");
+            return;
+        }
 
         // 特殊招式執行中，不可被普通攻擊打斷 
         if (specialAttack.isSpecialAttacking)
@@ -206,6 +218,7 @@ public class Player : Character
         // 如果目前不在攻擊狀態，切換進入
         if (!attack.isAttacking)
             stateMachine.SwitchState(attack);
+
     }
 
     protected override void Damage(float damage)
@@ -317,5 +330,78 @@ public class Player : Character
             transform.rotation,
             targetRotation,
             turnSpeed * Time.deltaTime);
+    }
+
+    /// <summary>
+    /// 鎖定時面向目標（取代 LookAtMoveDirection）
+    /// </summary>
+    public void LookAtTarget()
+    {
+        if (lockOn == null || !lockOn.isLockedOn || lockOn.lockedTarget == null) return;
+
+        Vector3 dirToTarget = lockOn.lockedTarget.position - transform.position;
+        dirToTarget.y = 0f;
+        if (dirToTarget.sqrMagnitude < 0.001f) return;
+
+        Quaternion targetRotation = Quaternion.LookRotation(dirToTarget);
+        transform.rotation = Quaternion.Lerp(
+            transform.rotation,
+            targetRotation,
+            turnSpeed * Time.deltaTime);
+    }
+
+    /// <summary>
+    /// 輸入翻滾按鍵（Shift）
+    /// 優先度：低於特殊招式，高於普通攻擊
+    /// </summary>
+    /// 
+    private void InputRoll()
+    {
+        if (!Input.GetKeyDown(KeyCode.LeftShift)) return;
+
+        // 特殊招式執行中，不可翻滾（特殊招式優先度最高）
+        if (specialAttack.isSpecialAttacking)
+        {
+            Debug.Log("<color=#f66>特殊招式執行中，無法翻滾</color>");
+            return;
+        }
+
+        // 武器切換中，不可翻滾
+        if (weaponSwitch.isSwitching)
+        {
+            Debug.Log("<color=#f66>切換武器中，無法翻滾</color>");
+            return;
+        }
+
+        // 不在地面上，不可翻滾
+        if (!CanJump())
+        {
+            Debug.Log("<color=#f66>空中無法翻滾</color>");
+            return;
+        }
+
+        // 正在翻滾中：排隊下一次翻滾（連續施放）
+        if (roll.isRolling)
+        {
+            roll.QueueNextRoll();
+            return;
+        }
+
+        // 通過所有檢查，進入翻滾狀態
+        stateMachine.SwitchState(roll);
+    }
+
+    /// <summary>
+    /// 輸入鎖定按鍵
+    /// </summary>
+    private void InputLockOn()
+    {
+        // Q 鍵切換鎖定
+        if (Input.GetKeyDown(KeyCode.Q))
+            lockOn.ToggleLockOn();
+
+        // P 鍵切換鎖定目標
+        if (Input.GetKeyDown(KeyCode.P))
+            lockOn.SwitchTarget();
     }
 }

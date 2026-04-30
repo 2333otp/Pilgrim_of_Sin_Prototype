@@ -30,6 +30,11 @@ public class PlayerAttack : PlayerState
     private float attackFinishTime;
     private string currentComboName;              // 目前觸發的連段名稱（Debug 用）
 
+    // Hitbox 參考（由 Player 傳入）
+    private Hitbox hitbox;
+
+
+
     // ────────────────────────────────────────
     // 建構函式
     // ────────────────────────────────────────
@@ -37,6 +42,10 @@ public class PlayerAttack : PlayerState
     public PlayerAttack(StateMachine stateMachine, Player player, string name)
         : base(stateMachine, player, name)
     {
+        // 從 Player 取得 Hitbox
+        hitbox = player.hitbox;
+        // ... 其餘連段定義不變
+
         inputSequence = new List<AttackInputType>();
 
         // ── 連段定義說明 ──────────────────────────────────
@@ -212,6 +221,11 @@ public class PlayerAttack : PlayerState
                 currentComboName = combo.comboName;
                 inputSequence.Clear();
                 Debug.Log($"<color=#0f9>✔ 觸發連段 : {currentComboName}</color>");
+
+                // 連段下一段開始，重置 Hitbox 讓這段可以再次造成傷害
+                if (hitbox != null)
+                    hitbox.ResetHit();
+
                 return;
             }
         }
@@ -220,6 +234,10 @@ public class PlayerAttack : PlayerState
         AttackInputType lastInput = inputSequence[inputSequence.Count - 1];
         string attackType = lastInput == AttackInputType.Light ? "輕攻擊" : "重攻擊";
         Debug.Log($"<color=#6cf>[{player.currentWeapon}] 普通{attackType}</color>");
+
+        // 普通攻擊也重置 Hitbox
+        if (hitbox != null)
+            hitbox.ResetHit();
     }
 
     // ────────────────────────────────────────
@@ -230,8 +248,11 @@ public class PlayerAttack : PlayerState
     {
         base.Enter();
         isAttacking = true;
-        // player.ani.applyRootMotion = true;          // 有動畫後取消註解
-        // player.ani.SetTrigger(player.parTriggerAttack); // 有動畫後取消註解
+
+        // 啟用 Hitbox
+        if (hitbox != null)
+            hitbox.SetActive(true);
+
         Debug.Log($"<color=#ff3>進入攻擊狀態 | 武器：{player.currentWeapon}</color>");
     }
 
@@ -239,11 +260,12 @@ public class PlayerAttack : PlayerState
     {
         base.Exit();
         isAttacking = false;
-        // player.ani.applyRootMotion = false;  // 有動畫後取消註解
         attackFinishTime = Time.time;
-
-        // 離開攻擊狀態時清空序列，避免殘留輸入影響下一次攻擊
         inputSequence.Clear();
+
+        // 關閉 Hitbox
+        if (hitbox != null)
+            hitbox.SetActive(false);
 
         Debug.Log("<color=#f66>離開攻擊狀態</color>");
     }

@@ -33,15 +33,15 @@ public class PlayerWalk : PlayerGround
     {
         base.Update();
 
-        // 計算八方向移動向量（相對攝影機）
-        Vector3 moveDir = GetCameraMoveDirection();
+        // 鎖定中用角色自身方向，否則用攝影機方向
+        Vector3 moveDir = (player.lockOn != null && player.lockOn.isLockedOn)
+            ? player.GetLockOnMoveDirection()
+            : GetCameraMoveDirection();
 
-        // 套用走路速度
         player.SetVelocity(
             moveDir * player.walkSpeed +
             Vector3.up * player.rig.linearVelocity.y);
 
-        // 有輸入才累加長按計時器
         if (moveDir.magnitude > 0f)
         {
             holdTimer += Time.deltaTime;
@@ -52,6 +52,7 @@ public class PlayerWalk : PlayerGround
             else
                 player.LookAtMoveDirection(moveDir);
         }
+
 
         // 動畫參數（有動畫後取消註解）
         // player.ani.SetFloat(player.parHorizontal, inputH);

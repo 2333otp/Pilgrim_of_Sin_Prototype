@@ -26,18 +26,16 @@ public class PlayerRun : PlayerGround
     {
         base.Update();
 
-        // 計算八方向移動向量（相對攝影機）
-        Vector3 moveDir = GetCameraMoveDirection();
+        Vector3 moveDir = (player.lockOn != null && player.lockOn.isLockedOn)
+            ? player.GetLockOnMoveDirection()
+            : GetCameraMoveDirection();
 
-        // 套用跑步速度
         player.SetVelocity(
             moveDir * player.runSpeed +
             Vector3.up * player.rig.linearVelocity.y);
 
-        // 有輸入才面向移動方向
         if (moveDir.magnitude > 0f)
         {
-            // 鎖定中面向目標，否則面向移動方向
             if (player.lockOn != null && player.lockOn.isLockedOn)
                 player.LookAtTarget();
             else

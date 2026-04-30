@@ -1,5 +1,7 @@
 ﻿using System;
 using UnityEngine;
+using UnityEngine.Windows;
+using Input = UnityEngine.Input;
 
 /// <summary>
 /// 玩家類別 : 紀錄玩家資料與相關功能
@@ -49,6 +51,8 @@ public class Player : Character
 
 
     private Transform mainCam;
+
+    public Hitbox hitbox { get; private set; }
     #endregion
 
     #region 狀態資料
@@ -101,6 +105,7 @@ public class Player : Character
     {
         base.Awake();
         HideMouse();                        //隱藏滑鼠
+        hitbox = GetComponentInChildren<Hitbox>();   //取得子物件的 Hitbox 元件
 
         //ani = GetComponent<Animator>();     //取得動畫元件
         //rig = GetComponent<Rigidbody>();    //取得剛體元件
@@ -130,6 +135,9 @@ public class Player : Character
 
     private void Update()
     {
+        // 強制清除角速度，防止物理旋轉
+        rig.angularVelocity = Vector3.zero;
+
         //狀態機更新
         stateMachine.Update();
         InputSpecialAttack();
@@ -404,4 +412,18 @@ public class Player : Character
         if (Input.GetKeyDown(KeyCode.P))
             lockOn.SwitchTarget();
     }
+
+    /// <summary>
+    /// 鎖定時的移動向量：相對於角色自身方向
+    /// </summary>
+    public Vector3 GetLockOnMoveDirection()
+    {
+        float h = Input.GetAxis("Horizontal");
+        float v = Input.GetAxis("Vertical");
+
+        Vector3 moveDir = transform.right * h + transform.forward * v;
+        if (moveDir.magnitude > 1f) moveDir.Normalize();
+        return moveDir;
+    }
+
 }

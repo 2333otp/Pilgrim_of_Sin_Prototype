@@ -25,6 +25,20 @@ public class SceneLoader : MonoBehaviour
     [SerializeField] private Image loadingBar;
     [SerializeField] private CanvasGroup group;
 
+    private void Awake()
+    {
+        // Singleton 保持不被銷毀
+        if (_instance == null)
+        {
+            _instance = this;
+            DontDestroyOnLoad(gameObject); // 加這行
+        }
+        else
+        {
+            Destroy(gameObject);
+        }
+    }
+
     /// <summary>
     /// 開始非同步載入場景
     /// </summary>
@@ -36,23 +50,32 @@ public class SceneLoader : MonoBehaviour
 
     private IEnumerator LoadSceneCoroutine(string sceneName)
     {
-        yield return StartCoroutine(FadeSystem.Fade(group));  //淡入載入畫面
+        yield return StartCoroutine(FadeSystem.Fade(group));  // 淡入畫面
 
-        AsyncOperation asyncOperation = UnityEngine.SceneManagement.SceneManager.LoadSceneAsync(sceneName);   //開始非同步載入指定場景並且獲得載入資訊 AsyncOperation
-        asyncOperation.allowSceneActivation = false;                                                          //防止場景自動啟動
+        AsyncOperation asyncOperation = UnityEngine.SceneManagement.SceneManager.LoadSceneAsync(sceneName);
+        asyncOperation.allowSceneActivation = false;
 
-
-        while (!asyncOperation.isDone)                                                  //在場景載入時更新UI
+        while (asyncOperation.progress < 0.9f)
         {
-
-            float progress = Mathf.Clamp01(asyncOperation.progress / 0.9f);            //計算載入進度(0到0.9，然後在完成時為1)
-            if (percentageText != null)                                                //更新百分比文字和載入條填充量
+            float progress = Mathf.Clamp01(asyncOperation.progress / 0.9f);
+            if (percentageText != null)
                 percentageText.text = $"{Mathf.RoundToInt(progress * 100f)}%";
             if (loadingBar != null)
                 loadingBar.fillAmount = progress;
-            if (asyncOperation.progress >= 0.9f)                                       //完全載入時，允許場景啟動
-                asyncOperation.allowSceneActivation = true;
-            yield return null;                                                         //等待下一幀 null          
+            yield return null;
         }
+
+        // 強制顯示100%
+        if (percentageText != null) percentageText.text = "100%";
+        if (loadingBar != null) loadingBar.fillAmount = 1f;
+
+        yield return new WaitForSeconds(1f);  // 停留1秒讓玩家看到
+
+        asyncOperation.allowSceneActivation = true;  // 正式跳轉
+
+        yield return new WaitUntil(() => asyncOperation.isDone);
+        group.alpha = 0f;
+        group.interactable = false;
+        group.blocksRaycasts = false;
     }
 }
